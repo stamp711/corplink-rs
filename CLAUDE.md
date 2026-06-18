@@ -29,6 +29,21 @@ cargo build --release
 Windows requires the **GNU** Rust toolchain (`rustup default stable-x86_64-pc-windows-gnu`),
 MinGW GCC + make, plus `wintun.dll` at runtime (fetched by `scripts/setup.ps1`).
 
+**Nix** (`flake.nix`, `nix/`): builds libwg + the Rust binary together. The submodule must
+be present, so pass `?submodules=1`:
+
+```bash
+nix build '.?submodules=1#corplink-rs'   # -> ./result/bin/corplink-rs
+nix develop '.?submodules=1'             # cargo/go/bindgen devshell
+```
+
+`nix/corplink-rs.nix` builds the Go c-archive (`buildGoModule`, `vendorHash`) and feeds
+`libwg.a`/`libwg.h` into `buildRustPackage` via `preBuild`; `bindgenHook` supplies libclang.
+Source is `self` (hashless, needs submodules), crates come from `Cargo.lock` (hashless); the
+only pinned content hash is the Go `vendorHash`. `nix/module.nix` is the NixOS module
+(systemd unit with `CAP_NET_ADMIN`). nixpkgs is pulled from flakehub (tarball, not the
+GitHub API) and needs rustc >= 1.88.
+
 CI: `.github/workflows/test.yml` (push to `test` branch) builds Windows;
 `release.yml` handles releases. There is no unit-test suite — "test" here means the
 release build compiles.

@@ -21,3 +21,7 @@ libwg/libwg.h
 # release artifacts
 /release/
 *.zip
+
+# nix build output
+/result
+/result-*

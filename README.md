@@ -14,6 +14,49 @@ pacman -U corplink-rs-4.1-1-x86_64.pkg.tar.zst
 
 > 欢迎贡献其它包管理器的打包脚本
 
+## Nix (flake)
+
+本仓库自带一个 flake，可直接构建（Go `libwg` + Rust 一起，无需手动先编译 libwg）。
+因为 `libwg/wireguard-go` 是 git submodule，构建时需要带上 `?submodules=1`：
+
+```bash
+# 构建
+nix build '.?submodules=1#corplink-rs'
+./result/bin/corplink-rs config.json
+
+# 直接运行
+nix run '.?submodules=1#corplink-rs' -- config.json
+
+# 开发环境（cargo / go / libclang 等）
+nix develop '.?submodules=1'
+```
+
+NixOS 用户可以使用自带模块（基于 `systemd/corplink-rs.service`，以 `CAP_NET_ADMIN`
+运行，无需完整 root）：
+
+```nix
+{
+  inputs.corplink-rs.url = "git+https://github.com/PinkD/corplink-rs?submodules=1";
+  outputs = { nixpkgs, corplink-rs, ... }: {
+    nixosConfigurations.host = nixpkgs.lib.nixosSystem {
+      modules = [
+        corplink-rs.nixosModules.corplink-rs
+        { nixpkgs.overlays = [ corplink-rs.overlays.default ]; }
+        {
+          services.corplink-rs.enable = true;
+          # 该文件会被复制进 StateDirectory；corplink-rs 会就地改写它
+          services.corplink-rs.configFile = "/etc/corplink/config.json";
+        }
+      ];
+    };
+  };
+}
+```
+
+> 纯净性说明：源码用 flake 自身的 `self`（带 submodule，无需 pin hash），Rust 依赖从
+> 提交的 `Cargo.lock` 解析（无 hash），唯一的确定性内容 hash 是 Go 第三方依赖的
+> `vendorHash`（gvisor 等约 16 MB，未 vendoring 进仓库）。
+
 ## 手动编译
 
 ### linux/macos
